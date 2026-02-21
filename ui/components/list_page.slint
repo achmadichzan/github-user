@@ -1,0 +1,79 @@
+import { Button, LineEdit, HorizontalBox, Spinner, ListView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { UserItem } from "structs.slint";
+import { UserRow } from "user_row.slint";
+
+export component ListPage inherits Rectangle {
+    in-out property <string> search-query: "a";
+    in-out property <[UserItem]> user-list;
+    in-out property <bool> is-searching: false;
+
+    callback search-requested(string);
+    callback user-selected(int);
+
+    background: Theme.bg-primary;
+
+    // Title
+    Text {
+        x: 0;
+        y: Theme.padding;
+        width: 100%;
+        text: "GitHub Users";
+        font-size: 22px;
+        font-weight: 700;
+        color: Theme.text-primary;
+        horizontal-alignment: center;
+    }
+
+    // Search bar
+    HorizontalBox {
+        x: Theme.padding;
+        y: 70px;
+        width: parent.width - 48px;
+        height: 40px;
+        spacing: 8px;
+
+        LineEdit {
+            text <=> root.search-query;
+            placeholder-text: "Search users...";
+            accepted => {
+                root.search-requested(root.search-query);
+            }
+        }
+
+        Button {
+            text: root.is-searching ? "..." : "Search";
+            enabled: !root.is-searching;
+            clicked => {
+                root.search-requested(root.search-query);
+            }
+        }
+    }
+
+    // User list
+    ListView {
+        x: Theme.padding;
+        y: 126px;
+        width: parent.width - 48px;
+        height: parent.height - 126px - 24px;
+
+        for item[idx] in root.user-list : UserRow {
+            login: item.login;
+            avatar: item.avatar;
+            clicked => {
+                root.user-selected(idx);
+            }
+        }
+    }
+
+    // Spinner overlay
+    Rectangle {
+        visible: root.is-searching;
+        x: Theme.padding;
+        y: 126px;
+        width: parent.width - 48px;
+        height: parent.height - 126px - 24px;
+        background: Theme.bg-primary;
+        Spinner { indeterminate: true; }
+    }
+}

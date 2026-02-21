@@ -1,0 +1,68 @@
+import { Theme } from "theme.slint";
+import { UserItem } from "structs.slint";
+import { ListPage } from "components/list_page.slint";
+import { DetailPage } from "components/detail_page.slint";
+
+export { UserItem }
+
+export component AppWindow inherits Window {
+    title: "GitHub User";
+    preferred-width: 480px;
+    preferred-height: 640px;
+    min-width: 460px;
+    min-height: 520px;
+    background: Theme.bg-primary;
+
+    // ===== Navigation =====
+    in-out property <int> current-page: 0;
+
+    // ===== Callbacks to Rust =====
+    callback search-requested(string);
+    callback user-selected(int);
+
+    // ===== List page property aliases =====
+    in-out property <string> search-query <=> list-page.search-query;
+    in-out property <[UserItem]> user-list <=> list-page.user-list;
+    in-out property <bool> is-searching <=> list-page.is-searching;
+
+    // ===== Detail page property aliases =====
+    in-out property <string> display-name <=> detail-page.display-name;
+    in-out property <string> login-name <=> detail-page.login-name;
+    in-out property <string> bio <=> detail-page.bio;
+    in-out property <image> avatar <=> detail-page.avatar;
+    in-out property <string> repos <=> detail-page.repos;
+    in-out property <string> followers <=> detail-page.followers;
+    in-out property <string> following <=> detail-page.following;
+    in-out property <string> profile-url <=> detail-page.profile-url;
+    in-out property <string> created-at <=> detail-page.created-at;
+    in-out property <bool> is-loading <=> detail-page.is-loading;
+    in-out property <string> error-message <=> detail-page.error-message;
+
+    // ===== Page 0 — List =====
+    list-page := ListPage {
+        visible: root.current-page == 0;
+        x: 0; y: 0;
+        width: 100%;
+        height: 100%;
+
+        search-requested(query) => {
+            root.search-requested(query);
+        }
+        user-selected(idx) => {
+            root.user-selected(idx);
+        }
+    }
+
+    // ===== Page 1 — Detail =====
+    detail-page := DetailPage {
+        visible: root.current-page == 1;
+        x: 0; y: 0;
+        width: 100%;
+        height: 100%;
+
+        back-requested => {
+            root.current-page = 0;
+            root.error-message = "";
+        }
+    }
+}

@@ -1,0 +1,31 @@
+import { VerticalBox } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+
+export component StatCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+
+    width: 120px;
+    height: 70px;
+    border-radius: 12px;
+    background: Theme.bg-card;
+
+    VerticalBox {
+        alignment: center;
+        padding: 8px;
+
+        Text {
+            text: root.value;
+            font-size: 22px;
+            font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.label;
+            font-size: 11px;
+            color: Theme.text-muted;
+            horizontal-alignment: center;
+        }
+    }
+}
