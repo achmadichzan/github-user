@@ -1,6 +1,8 @@
-import { Button, VerticalBox, HorizontalBox, Spinner } from "std-widgets.slint";
-import { Theme } from "theme.slint";
+import { Button, VerticalBox, HorizontalBox, Spinner, ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
 import { StatCard } from "stat_card.slint";
+import { RepoItem } from "../structs.slint";
+import { RepoCard } from "repo_card.slint";
 
 export component DetailPage inherits Rectangle {
     in-out property <string> display-name: "";
@@ -14,131 +16,175 @@ export component DetailPage inherits Rectangle {
     in-out property <string> created-at: "";
     in-out property <bool> is-loading: false;
     in-out property <string> error-message: "";
+    in-out property <[RepoItem]> repo-list;
+    in-out property <bool> is-loading-repos: false;
 
     callback back-requested();
+    callback profile-clicked(string);
+    callback repo-clicked(string);
 
     background: Theme.bg-primary;
 
-    VerticalBox {
+    ScrollView {
         width: 100%;
         height: 100%;
-        alignment: start;
-        padding: Theme.padding;
-        spacing: Theme.spacing;
 
-        // Back button
-        HorizontalBox {
-            height: 36px;
+        VerticalBox {
             alignment: start;
+            padding: Theme.padding;
+            spacing: Theme.spacing;
 
-            Button {
-                text: "← Back";
-                clicked => {
-                    root.back-requested();
-                }
-            }
-        }
-
-        // Error
-        if root.error-message != "" : Rectangle {
-            height: 36px;
-            border-radius: 8px;
-            background: Theme.bg-error;
-
-            Text {
-                text: root.error-message;
-                font-size: 12px;
-                color: Theme.text-error;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-        }
-
-        // Loading spinner
-        if root.is-loading : Rectangle {
-            height: 300px;
-            Spinner { indeterminate: true; }
-        }
-
-        // Profile card
-        if !root.is-loading && root.login-name != "" : VerticalBox {
-            alignment: center;
-            spacing: 12px;
-
-            // Avatar
-            Rectangle {
-                height: 128px;
-                width: 128px;
-                border-radius: 64px;
-                clip: true;
-                horizontal-stretch: 0;
-
-                Image {
-                    source: root.avatar;
-                    width: 128px;
-                    height: 128px;
-                    image-fit: cover;
-                }
-            }
-
-            // Name
-            Text {
-                text: root.display-name;
-                font-size: 24px;
-                font-weight: 700;
-                color: Theme.text-primary;
-                horizontal-alignment: center;
-            }
-
-            // Login
-            Text {
-                text: "@" + root.login-name;
-                font-size: 14px;
-                color: Theme.text-dim;
-                horizontal-alignment: center;
-            }
-
-            // Bio
-            if root.bio != "" : Text {
-                text: root.bio;
-                font-size: 13px;
-                color: Theme.text-bio;
-                horizontal-alignment: center;
-                wrap: word-wrap;
-            }
-
-            // Stats
+            // Back button
             HorizontalBox {
-                alignment: center;
-                spacing: 12px;
-                height: 80px;
+                height: 36px;
+                alignment: start;
 
-                StatCard { label: "Repos";     value: root.repos; }
-                StatCard { label: "Followers"; value: root.followers; }
-                StatCard { label: "Following"; value: root.following; }
+                Button {
+                    text: "← Back";
+                    clicked => {
+                        root.back-requested();
+                    }
+                }
             }
 
-            // Profile link
-            Rectangle {
+            // Error
+            if root.error-message != "" : Rectangle {
                 height: 36px;
                 border-radius: 8px;
-                background: Theme.bg-card;
+                background: Theme.bg-error;
 
                 Text {
-                    text: "🔗 " + root.profile-url;
+                    text: root.error-message;
                     font-size: 12px;
-                    color: Theme.accent;
+                    color: Theme.text-error;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
             }
 
-            // Joined
-            Text {
-                text: "Joined: " + root.created-at;
-                font-size: 11px;
-                color: Theme.text-subtle;
-                horizontal-alignment: center;
+            // Loading spinner
+            if root.is-loading : Rectangle {
+                height: 300px;
+                Spinner { indeterminate: true; }
+            }
+
+            // Profile card
+            if !root.is-loading && root.login-name != "" : VerticalBox {
+                alignment: center;
+                spacing: 12px;
+
+                // Avatar
+                Rectangle {
+                    height: 128px;
+                    width: 128px;
+                    border-radius: 64px;
+                    clip: true;
+                    horizontal-stretch: 0;
+
+                    Image {
+                        source: root.avatar;
+                        width: 128px;
+                        height: 128px;
+                        image-fit: cover;
+                    }
+                }
+
+                // Name
+                Text {
+                    text: root.display-name;
+                    font-size: 24px;
+                    font-weight: 700;
+                    color: Theme.text-primary;
+                    horizontal-alignment: center;
+                }
+
+                // Login
+                Text {
+                    text: "@" + root.login-name;
+                    font-size: 14px;
+                    color: Theme.text-dim;
+                    horizontal-alignment: center;
+                }
+
+                // Bio
+                if root.bio != "" : Text {
+                    text: root.bio;
+                    font-size: 13px;
+                    color: Theme.text-bio;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+
+                // Stats
+                HorizontalBox {
+                    alignment: center;
+                    spacing: 12px;
+                    height: 80px;
+
+                    StatCard { label: "Repos";     value: root.repos; }
+                    StatCard { label: "Followers"; value: root.followers; }
+                    StatCard { label: "Following"; value: root.following; }
+                }
+
+                // Profile link
+                Rectangle {
+                    height: 36px;
+                    border-radius: 8px;
+                    background: ta.has-hover ? Theme.bg-card : transparent;
+
+                    Text {
+                        text: "🔗 " + root.profile-url;
+                        font-size: 12px;
+                        color: Theme.accent;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    ta := TouchArea {
+                        clicked => {
+                            root.profile-clicked(root.profile-url);
+                        }
+                        mouse-cursor: pointer;
+                    }
+                }
+
+                // Joined
+                Text {
+                    text: "Joined: " + root.created-at;
+                    font-size: 11px;
+                    color: Theme.text-subtle;
+                    horizontal-alignment: center;
+                }
+
+                // Recent Repos
+                if root.repo-list.length > 0 || root.is-loading-repos : VerticalBox {
+                    alignment: start;
+                    spacing: 8px;
+                    padding-bottom: 32px;
+
+                    Text {
+                        text: "Recent Repositories";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: Theme.text-primary;
+                    }
+
+                    if root.is-loading-repos : Spinner {
+                        indeterminate: true;
+                    }
+
+                    if !root.is-loading-repos : VerticalBox {
+                        spacing: 8px;
+                        padding: 0;
+
+                        for repo in root.repo-list: RepoCard {
+                            repo: repo;
+                            clicked => {
+                                root.repo-clicked(repo.url);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

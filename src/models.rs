@@ -30,3 +30,13 @@ pub struct SearchUser {
     pub id: u64,
     pub avatar_url: String,
 }
+
+/// A repository item from the `/users/{username}/repos` API.
+#[derive(Debug, Deserialize)]
+pub struct RepoItem {
+    pub name: String,
+    pub description: Option<String>,
+    pub language: Option<String>,
+    pub stargazers_count: u32,
+    pub html_url: String,
+}

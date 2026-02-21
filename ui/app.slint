@@ -1,9 +1,9 @@
 import { Theme } from "theme.slint";
-import { UserItem } from "structs.slint";
+import { UserItem, RepoItem } from "structs.slint";
 import { ListPage } from "components/list_page.slint";
 import { DetailPage } from "components/detail_page.slint";
 
-export { UserItem }
+export { UserItem, RepoItem }
 
 export component AppWindow inherits Window {
     title: "GitHub User";
@@ -19,6 +19,8 @@ export component AppWindow inherits Window {
     // ===== Callbacks to Rust =====
     callback search-requested(string);
     callback user-selected(int);
+    callback repo-clicked(string);
+    callback profile-clicked(string);
 
     // ===== List page property aliases =====
     in-out property <string> search-query <=> list-page.search-query;
@@ -37,6 +39,8 @@ export component AppWindow inherits Window {
     in-out property <string> created-at <=> detail-page.created-at;
     in-out property <bool> is-loading <=> detail-page.is-loading;
     in-out property <string> error-message <=> detail-page.error-message;
+    in-out property <[RepoItem]> repo-list <=> detail-page.repo-list;
+    in-out property <bool> is-loading-repos <=> detail-page.is-loading-repos;
 
     // ===== Page 0 — List =====
     list-page := ListPage {
@@ -63,6 +67,12 @@ export component AppWindow inherits Window {
         back-requested => {
             root.current-page = 0;
             root.error-message = "";
+        }
+        profile-clicked(url) => {
+            root.profile-clicked(url);
+        }
+        repo-clicked(url) => {
+            root.repo-clicked(url);
         }
     }
 }

@@ -4,7 +4,7 @@ use reqwest::Client;
 use crate::models::{GitHubUser, SearchUser};
 
 /// Creates a preconfigured HTTP client with required headers.
-fn build_client(token: Option<&str>) -> Result<Client> {
+pub fn build_client(token: Option<&str>) -> Result<Client> {
     use reqwest::header::{HeaderMap, HeaderValue};
 
     let mut headers = HeaderMap::new();
@@ -27,8 +27,7 @@ fn build_client(token: Option<&str>) -> Result<Client> {
 
 /// Searches GitHub users by query string.
 /// Returns up to 30 results sorted by best match.
-pub async fn search_users(query: &str, token: Option<&str>) -> Result<Vec<SearchUser>> {
-    let client = build_client(token)?;
+pub async fn search_users(client: &Client, query: &str) -> Result<Vec<SearchUser>> {
 
     let url = format!(
         "https://api.github.com/search/users?q={}&per_page=30",
@@ -56,8 +55,7 @@ pub async fn search_users(query: &str, token: Option<&str>) -> Result<Vec<Search
 }
 
 /// Fetches a GitHub user by username.
-pub async fn fetch_user(username: &str, token: Option<&str>) -> Result<GitHubUser> {
-    let client = build_client(token)?;
+pub async fn fetch_user(client: &Client, username: &str) -> Result<GitHubUser> {
     let url = format!("https://api.github.com/users/{username}");
 
     let response = client
@@ -78,6 +76,30 @@ pub async fn fetch_user(username: &str, token: Option<&str>) -> Result<GitHubUse
         .context("Failed to deserialize GitHub user response")?;
 
     Ok(user)
+}
+
+/// Fetches a user's repositories, sorted by recently updated.
+pub async fn fetch_user_repos(client: &Client, username: &str) -> Result<Vec<crate::models::RepoItem>> {
+    let url = format!("https://api.github.com/users/{username}/repos?sort=updated&per_page=10");
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .context("Failed to send request to GitHub API for repos")?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        anyhow::bail!("GitHub API error ({status}): {body}");
+    }
+
+    let repos = response
+        .json::<Vec<crate::models::RepoItem>>()
+        .await
+        .context("Failed to deserialize GitHub repo response")?;
+
+    Ok(repos)
 }
 
 /// Simple percent-encoding for the query parameter.

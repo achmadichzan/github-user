@@ -5,7 +5,8 @@ slint::include_modules!();
 
 use std::env;
 use std::sync::Arc;
-use slint::Model;
+use std::rc::Rc;
+use slint::{Model, VecModel};
 
 fn main() -> anyhow::Result<()> {
     // Load .env variables
@@ -13,6 +14,9 @@ fn main() -> anyhow::Result<()> {
     let token: Option<String> = env::var("GITHUB_TOKEN")
         .ok()
         .filter(|t| !t.is_empty());
+
+    // Shared HTTP Client
+    let http_client = client::build_client(token.as_deref())?;
 
     // Background tokio runtime for async HTTP
     let rt = Arc::new(tokio::runtime::Runtime::new()?);
@@ -25,12 +29,12 @@ fn main() -> anyhow::Result<()> {
     // =============================================
     {
         let app_weak = app.as_weak();
-        let token = token.clone();
+        let http_client = http_client.clone();
         let rt = rt.clone();
 
         app.on_search_requested(move |query| {
             let app_weak = app_weak.clone();
-            let token = token.clone();
+            let http_client = http_client.clone();
             let query = query.to_string();
 
             if let Some(app) = app_weak.upgrade() {
@@ -41,7 +45,7 @@ fn main() -> anyhow::Result<()> {
             let app_weak_inner = app_weak.clone();
 
             rt.spawn(async move {
-                let result = client::search_users(&query, token.as_deref()).await;
+                let result = client::search_users(&http_client, &query).await;
 
                 match result {
                     Ok(users) => {
@@ -49,7 +53,10 @@ fn main() -> anyhow::Result<()> {
                         let mut handles = Vec::new();
                         for user in &users {
                             let url = user.avatar_url.clone();
-                            handles.push(tokio::spawn(download_avatar_pixels(url, 80)));
+                            let client_cloned = http_client.clone();
+                            handles.push(tokio::spawn(async move {
+                                download_avatar_pixels(&client_cloned, url, 80).await
+                            }));
                         }
 
                         // Collect results
@@ -103,12 +110,12 @@ fn main() -> anyhow::Result<()> {
     // =============================================
     {
         let app_weak = app.as_weak();
-        let token = token.clone();
+        let http_client = http_client.clone();
         let rt = rt.clone();
 
         app.on_user_selected(move |index| {
             let app_weak = app_weak.clone();
-            let token = token.clone();
+            let http_client = http_client.clone();
 
             // Get the login from the list model
             let login = {
@@ -127,16 +134,22 @@ fn main() -> anyhow::Result<()> {
                 app.set_is_loading(true);
                 app.set_error_message("".into());
                 app.set_login_name("".into());
+                
+                // Clear any old repos
+                let empty_model = Rc::new(VecModel::default());
+                app.set_repo_list(empty_model.into());
+                app.set_is_loading_repos(true);
             }
 
             let app_weak_inner = app_weak.clone();
 
+            let http_client_fetch = http_client.clone();
             rt.spawn(async move {
-                let result = client::fetch_user(&login, token.as_deref()).await;
+                let result = client::fetch_user(&http_client_fetch, &login).await;
 
                 match result {
                     Ok(user) => {
-                        let avatar_pixels = download_avatar_pixels(user.avatar_url.clone(), 256).await;
+                        let avatar_pixels = download_avatar_pixels(&http_client, user.avatar_url.clone(), 128).await;
 
                         let login: slint::SharedString = user.login.into();
                         let name: slint::SharedString =
@@ -151,6 +164,10 @@ fn main() -> anyhow::Result<()> {
                             user.following.to_string().into();
                         let profile_url: slint::SharedString = user.html_url.into();
                         let created_at: slint::SharedString = user.created_at.into();
+
+                        // Clone login before move so we can use it for the repo API call
+                        let login_for_repos = login.clone();
+                        let app_weak_repos = app_weak_inner.clone();
 
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = app_weak_inner.upgrade() {
@@ -173,6 +190,39 @@ fn main() -> anyhow::Result<()> {
                                 app.set_is_loading(false);
                             }
                         });
+                        // Proceed to fetch repositories asynchronously
+                        let client_for_repos = http_client.clone();
+                        
+                        tokio::spawn(async move {
+                            match client::fetch_user_repos(&client_for_repos, &login_for_repos).await {
+                                Ok(repos) => {
+                                    let ui_repos: Vec<crate::RepoItem> = repos.into_iter().map(|r| {
+                                        crate::RepoItem {
+                                            name: r.name.into(),
+                                            description: r.description.unwrap_or_default().into(),
+                                            language: r.language.unwrap_or_default().into(),
+                                            stars: r.stargazers_count.to_string().into(),
+                                            url: r.html_url.into(),
+                                        }
+                                    }).collect();
+                                    
+                                    let _ = slint::invoke_from_event_loop(move || {
+                                        if let Some(app) = app_weak_repos.upgrade() {
+                                            let repo_model = Rc::new(VecModel::from(ui_repos));
+                                            app.set_repo_list(repo_model.into());
+                                            app.set_is_loading_repos(false);
+                                        }
+                                    });
+                                }
+                                Err(_) => {
+                                    let _ = slint::invoke_from_event_loop(move || {
+                                        if let Some(app) = app_weak_repos.upgrade() {
+                                            app.set_is_loading_repos(false);
+                                        }
+                                    });
+                                }
+                            }
+                        });
                     }
                     Err(e) => {
                         let msg: slint::SharedString = format!("Error: {e}").into();
@@ -188,6 +238,21 @@ fn main() -> anyhow::Result<()> {
         });
     }
 
+    // =============================================
+    //  CALLBACK: profile-clicked
+    // =============================================
+    app.on_profile_clicked(|url| {
+        let _ = open::that(url.as_str());
+    });
+
+    // =============================================
+    //  CALLBACK: repo-clicked
+    // =============================================
+    app.on_repo_clicked(|url| {
+        // Open the raw URL in the native Web Browser
+        let _ = open::that(url.as_str());
+    });
+
     // Trigger initial search for "a" on startup
     app.invoke_search_requested(app.get_search_query());
 
@@ -198,7 +263,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Downloads avatar image bytes and decodes them into raw RGBA pixels.
-async fn download_avatar_pixels(url: String, size: u32) -> Option<(Vec<u8>, u32, u32)> {
+async fn download_avatar_pixels(client: &reqwest::Client, url: String, size: u32) -> Option<(Vec<u8>, u32, u32)> {
     // Use a specified size
     let sized_url = if url.contains('?') {
         format!("{url}&s={size}")
@@ -206,9 +271,15 @@ async fn download_avatar_pixels(url: String, size: u32) -> Option<(Vec<u8>, u32,
         format!("{url}?s={size}")
     };
 
-    let bytes = reqwest::get(&sized_url).await.ok()?.bytes().await.ok()?;
+    let bytes = client.get(&sized_url).send().await.ok()?.bytes().await.ok()?;
     let dynamic_image = image::load_from_memory(&bytes).ok()?;
-    let rgba = dynamic_image.to_rgba8();
+
+    // Explicitly resize the image to prevent memory bloat if GitHub returns
+    // a larger image than requested (happens often with cached avatars).
+    // Using thumbnail_exact uses a faster algorithm and uses less peak memory than resize_exact.
+    let resized = dynamic_image.thumbnail_exact(size, size);
+    
+    let rgba = resized.to_rgba8();
     let (w, h) = rgba.dimensions();
 
     Some((rgba.into_raw(), w, h))
