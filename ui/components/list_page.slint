@@ -13,55 +13,67 @@ export component ListPage inherits Rectangle {
 
     background: Theme.bg-primary;
 
-    // Title
-    Text {
-        x: 0;
-        y: Theme.padding;
+    VerticalLayout {
         width: 100%;
-        text: "GitHub Users";
-        font-size: 22px;
-        font-weight: 700;
-        color: Theme.text-primary;
-        horizontal-alignment: center;
-    }
+        height: 100%;
+        padding: 0;
+        
+        HorizontalBox {
+            height: 60px;
+            padding-left: Theme.padding;
+            padding-right: Theme.padding;
+            alignment: center;
 
-    // Search bar
-    HorizontalBox {
-        x: Theme.padding;
-        y: 70px;
-        width: parent.width - 48px;
-        height: 40px;
-        spacing: 8px;
-
-        LineEdit {
-            text <=> root.search-query;
-            placeholder-text: "Search users...";
-            accepted => {
-                root.search-requested(root.search-query);
+            // Title
+            Text {
+                text: "GitHub Users";
+                font-size: 22px;
+                color: Theme.text-primary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
             }
         }
-
-        Button {
-            text: root.is-searching ? "..." : "Search";
-            enabled: !root.is-searching;
-            clicked => {
-                root.search-requested(root.search-query);
+    
+        // Search bar
+        HorizontalBox {
+            width: parent.width;
+            height: 40px;
+            spacing: 8px;
+            padding-left: Theme.padding;
+            padding-right: Theme.padding;
+    
+            LineEdit {
+                text <=> root.search-query;
+                placeholder-text: "Search users...";
+                accepted => {
+                    root.search-requested(root.search-query);
+                }
+            }
+    
+            Button {
+                text: root.is-searching ? "..." : "Search";
+                enabled: !root.is-searching;
+                clicked => {
+                    root.search-requested(root.search-query);
+                }
             }
         }
-    }
+    
+        HorizontalBox {
+            width: parent.width;
+            height: parent.height - 60px - 40px;
+            padding-left: Theme.padding;
+            padding-right: Theme.padding;
 
-    // User list
-    ListView {
-        x: Theme.padding;
-        y: 126px;
-        width: parent.width - 48px;
-        height: parent.height - 126px - 24px;
-
-        for item[idx] in root.user-list : UserRow {
-            login: item.login;
-            avatar: item.avatar;
-            clicked => {
-                root.user-selected(idx);
+            // User list
+            ListView {
+                for item[idx] in root.user-list : UserRow {
+                    login: item.login;
+                    avatar: item.avatar;
+                    clicked => {
+                        root.user-selected(idx);
+                    }
+                }
             }
         }
     }
@@ -70,9 +82,9 @@ export component ListPage inherits Rectangle {
     Rectangle {
         visible: root.is-searching;
         x: Theme.padding;
-        y: 126px;
+        y: 100px;
         width: parent.width - 48px;
-        height: parent.height - 126px - 24px;
+        height: parent.height - 60px - 40px;
         background: Theme.bg-primary;
         Spinner { indeterminate: true; }
     }

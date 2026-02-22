@@ -4,7 +4,7 @@ import { StatCard } from "stat_card.slint";
 import { RepoItem } from "../structs.slint";
 import { RepoCard } from "repo_card.slint";
 
-export component DetailPage inherits Window {
+export component DetailPage inherits Rectangle {
     in-out property <string> display-name: "";
     in-out property <string> login-name: "";
     in-out property <string> bio: "";
@@ -29,12 +29,12 @@ export component DetailPage inherits Window {
         width: 100%;
         height: 100%;
         alignment: start;
+        padding: 0;
 
         // Error
         if root.error-message != "" : Rectangle {
             height: 36px;
             border-radius: 8px;
-            padding: Theme.padding;
             background: Theme.bg-error;
 
             Text {
@@ -47,7 +47,7 @@ export component DetailPage inherits Window {
         }
 
         ScrollView {
-            height: parent.height - 16px;
+            height: parent.height;
         
             VerticalBox {
                 alignment: start;
