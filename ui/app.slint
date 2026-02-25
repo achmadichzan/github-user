@@ -21,6 +21,7 @@ export component AppWindow inherits Window {
     callback user-selected(int);
     callback repo-clicked(string);
     callback profile-clicked(string);
+    callback toogle-fullscreen();
 
     // ===== List page property aliases =====
     in-out property <string> search-query <=> list-page.search-query;
@@ -73,6 +74,18 @@ export component AppWindow inherits Window {
         }
         repo-clicked(url) => {
             root.repo-clicked(url);
+        }
+    }
+
+    forward-focus: key-handler;
+
+    key-handler := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.F11) {
+                root.toogle-fullscreen();
+                return EventResult.accept;
+            }
+            return EventResult.reject;
         }
     }
 }

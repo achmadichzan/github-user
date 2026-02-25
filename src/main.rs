@@ -6,6 +6,7 @@ slint::include_modules!();
 use std::env;
 use std::sync::Arc;
 use std::rc::Rc;
+use std::cell::RefCell;
 use slint::{Model, VecModel};
 
 fn main() -> anyhow::Result<()> {
@@ -252,6 +253,22 @@ fn main() -> anyhow::Result<()> {
         // Open the raw URL in the native Web Browser
         let _ = open::that(url.as_str());
     });
+
+    // =============================================
+    //  CALLBACK: toogle-fullscreen
+    // =============================================
+    {
+        let weak_app = app.as_weak();
+        let is_fullscreen = Rc::new(RefCell::new(false));
+
+        app.on_toogle_fullscreen(move || {
+            if let Some(app) = weak_app.upgrade() {
+                let mut fs = is_fullscreen.borrow_mut();
+                *fs = !*fs;
+                app.window().set_fullscreen(*fs);
+            }
+        });
+    }
 
     // Trigger initial search for "a" on startup
     app.invoke_search_requested(app.get_search_query());
